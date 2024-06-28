@@ -614,6 +614,13 @@ int TWFunc::tw_reboot(RebootCommand command)
 #else
 			return reboot(RB_POWER_OFF);
 #endif
+		case rb_hacked_bl:
+                        check_and_run_script("/sbin/reboot-amonet", "reboot amonet");
+#ifdef ANDROID_RB_PROPERTY
+			return property_set(ANDROID_RB_PROPERTY, "reboot,recovery");
+#else
+			return __reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, LINUX_REBOOT_CMD_RESTART2, (void*) "recovery");
+#endif
 		case rb_download:
 			check_and_run_script("/sbin/rebootdownload.sh", "reboot download");
 #ifdef ANDROID_RB_PROPERTY

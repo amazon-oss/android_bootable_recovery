@@ -582,6 +582,12 @@ void DataManager::SetDefaultValues()
 #else
 	mConst.SetValue(TW_REBOOT_BOOTLOADER, "1");
 #endif
+#ifdef TW_HACKED_BL_BUTTON
+	printf("TW_HACKED_BL_BUTTON := true\n");
+	mConst.SetValue(TW_REBOOT_HACKED_BL, "1");
+#else
+	mConst.SetValue(TW_REBOOT_HACKED_BL, "0");
+#endif
 #ifdef RECOVERY_SDCARD_ON_DATA
 	printf("RECOVERY_SDCARD_ON_DATA := true\n");
 	mConst.SetValue(TW_HAS_DATA_MEDIA, "1");

@@ -262,6 +262,7 @@
 		<string name="rb_recovery_btn">Recovery</string>
 		<string name="rb_bootloader_btn">Bootloader</string>
 		<string name="rb_download_btn">İndir</string>
+		<string name="rb_hacked_bl_btn">Hacked BL</string>
 		<string name="turning_off">Kapatılıyor...</string>
 		<string name="swipe_power_off">Kapatmak için Kaydır</string>
 		<string name="swipe_power_off_s">Kapat</string>
