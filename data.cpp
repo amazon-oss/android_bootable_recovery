@@ -584,7 +584,9 @@ void DataManager::SetDefaultValues()
 #endif
 #ifdef TW_HACKED_BL_BUTTON
 	printf("TW_HACKED_BL_BUTTON := true\n");
-	mConst.SetValue(TW_REBOOT_HACKED_BL, "1");
+        if (TWFunc::Path_Exists("/dev/block/platform/mtk-msdc.0/by-name/boot_x")) {
+	    mConst.SetValue(TW_REBOOT_HACKED_BL, "1");
+        }
 #else
 	mConst.SetValue(TW_REBOOT_HACKED_BL, "0");
 #endif
