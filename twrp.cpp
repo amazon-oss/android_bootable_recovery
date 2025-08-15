@@ -383,6 +383,8 @@ int main(int argc, char **argv) {
 		TWFunc::tw_reboot(rb_bootloader);
 	else if (Reboot_Arg == "download")
 		TWFunc::tw_reboot(rb_download);
+	else if (Reboot_Arg == "hacked_bl")
+		TWFunc::tw_reboot(rb_hacked_bl);
 	else
 		TWFunc::tw_reboot(rb_system);
 
