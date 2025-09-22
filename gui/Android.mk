@@ -61,6 +61,9 @@ endif
 ifneq ($(TW_NO_SCREEN_TIMEOUT),)
     LOCAL_CFLAGS += -DTW_NO_SCREEN_TIMEOUT
 endif
+ifneq ($(TW_NO_SCREEN),)
+    LOCAL_CFLAGS += -DTW_NO_SCREEN
+endif
 ifeq ($(TW_OEM_BUILD), true)
     LOCAL_CFLAGS += -DTW_OEM_BUILD
 endif
@@ -186,8 +189,15 @@ TWRP_RES += $(TW_ADDITIONAL_RES)
 
 TWRP_RES_GEN := $(intermediates)/twrp
 $(TWRP_RES_GEN):
+	@echo "Creating TWRP resources..."
+	@echo "TWRP_THEME_LOC: $(TWRP_THEME_LOC)"
+	@echo "TARGET_RECOVERY_ROOT_OUT: $(TARGET_RECOVERY_ROOT_OUT)"
+	@echo "TWRES_PATH: $(TWRES_PATH)"
+	@echo "TW_NO_SCREEN: $(TW_NO_SCREEN)"
 	mkdir -p $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)
 	cp -fr $(TWRP_RES) $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)
+	@echo "Copying theme files from: $(TWRP_THEME_LOC)/*"
+	@echo "To: $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)"
 	cp -fr $(TWRP_THEME_LOC)/* $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)
 
 LOCAL_GENERATED_SOURCES := $(TWRP_RES_GEN)
