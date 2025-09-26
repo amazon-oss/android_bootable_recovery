@@ -525,11 +525,11 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 				}
 			}
 		}
-#endif
 		else
 		{
 			LOGERR("Unknown object type: %s.\n", type.c_str());
 		}
+#endif
 	}
 	return true;
 }
@@ -540,7 +540,6 @@ int Page::Render(void)
 	// Render background
 	gr_color(mBackground.red, mBackground.green, mBackground.blue, mBackground.alpha);
 	gr_fill(0, 0, gr_fb_width(), gr_fb_height());
-#endif
 
 	// Render remaining objects
 	std::vector<RenderObject*>::iterator iter;
@@ -549,6 +548,7 @@ int Page::Render(void)
 		if ((*iter)->Render())
 			LOGERR("A render request has failed.\n");
 	}
+#endif
 	return 0;
 }
 
@@ -556,6 +556,7 @@ int Page::Update(void)
 {
 	int retCode = 0;
 
+#ifndef TW_NO_SCREEN
 	std::vector<RenderObject*>::iterator iter;
 	for (iter = mRenders.begin(); iter != mRenders.end(); iter++)
 	{
@@ -565,6 +566,7 @@ int Page::Update(void)
 		else if (ret > retCode)
 			retCode = ret;
 	}
+#endif
 
 	return retCode;
 }
