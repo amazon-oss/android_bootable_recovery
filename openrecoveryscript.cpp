@@ -364,6 +364,9 @@ int OpenRecoveryScript::run_script_file(void) {
 				string result;
 				pid_t sideload_child_pid;
 
+#ifdef TW_LEDS
+				property_set("leds.animation", "sideload");
+#endif
 				gui_msg("start_sideload=Starting ADB sideload feature...");
 				ret_val = apply_from_adb("/", &sideload_child_pid);
 				if (ret_val != 0) {
@@ -388,6 +391,9 @@ int OpenRecoveryScript::run_script_file(void) {
 					waitpid(sideload_child_pid, &status, 0);
 				}
 				property_set("ctl.start", "adbd");
+#ifdef TW_LEDS
+				property_set("leds.animation", ret_val == 0 ? "success" : "error");
+#endif
 				gui_msg("done=Done.");
 			} else if (strcmp(command, "fixperms") == 0 || strcmp(command, "fixpermissions") == 0 || strcmp(command, "fixcontexts") == 0) {
 				ret_val = PartitionManager.Fix_Contexts();

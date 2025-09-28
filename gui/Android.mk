@@ -64,6 +64,9 @@ endif
 ifneq ($(TW_NO_SCREEN),)
     LOCAL_CFLAGS += -DTW_NO_SCREEN
 endif
+ifneq ($(TW_LEDS),)
+    LOCAL_CFLAGS += -DTW_LEDS
+endif
 ifeq ($(TW_OEM_BUILD), true)
     LOCAL_CFLAGS += -DTW_OEM_BUILD
 endif

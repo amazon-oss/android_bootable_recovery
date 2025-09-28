@@ -211,6 +211,9 @@ endif
 ifneq ($(TW_NO_SCREEN),)
     LOCAL_CFLAGS += -DTW_NO_SCREEN
 endif
+ifneq ($(TW_LEDS),)
+    LOCAL_CFLAGS += -DTW_LEDS
+endif
 ifeq ($(BOARD_HAS_NO_REAL_SDCARD), true)
     LOCAL_CFLAGS += -DBOARD_HAS_NO_REAL_SDCARD
 endif

@@ -1519,6 +1519,9 @@ int GUIAction::adbsideload(std::string arg __unused)
 		simulate_progress_bar();
 		operation_end(0);
 	} else {
+#ifdef TW_LEDS
+		property_set("leds.animation", "sideload");
+#endif
 		gui_msg("start_sideload=Starting ADB sideload feature...");
 		bool mtp_was_enabled = TWFunc::Toggle_MTP(false);
 
@@ -1557,6 +1560,9 @@ int GUIAction::adbsideload(std::string arg __unused)
 		property_set("ctl.start", "adbd");
 		TWFunc::Toggle_MTP(mtp_was_enabled);
 		reinject_after_flash();
+#ifdef TW_LEDS
+		property_set("leds.animation", ret == 0 ? "success" : "error");
+#endif
 		operation_end(ret);
 	}
 	return 0;

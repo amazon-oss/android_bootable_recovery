@@ -61,6 +61,11 @@
 #include "legacy_property_service.h"
 #include "twinstall.h"
 #include "installcommand.h"
+
+#ifdef TW_LEDS
+#include "cutils/properties.h"
+#endif
+
 extern "C" {
 	#include "gui/gui.h"
 }
@@ -319,6 +324,9 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 
 	if (strcmp(path, "error") == 0) {
 		LOGERR("Failed to get adb sideload file: '%s'\n", path);
+#ifdef TW_LEDS
+		property_set("leds.animation", "error");
+#endif
 		return INSTALL_CORRUPT;
 	}
 
@@ -348,6 +356,9 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 				twrpDigest *digest = new twrpMD5();
 				if (!twrpDigestDriver::stream_file_to_digest(Full_Filename, digest)) {
 					delete digest;
+#ifdef TW_LEDS
+					property_set("leds.animation", "error");
+#endif
 					return INSTALL_CORRUPT;
 				}
 				string digest_check = digest->return_digest_string();
@@ -357,6 +368,9 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 				else {
 					LOGERR("Aborting zip install: Digest verification failed\n");
 					delete digest;
+#ifdef TW_LEDS
+					property_set("leds.animation", "error");
+#endif
 					return INSTALL_CORRUPT;
 				}
 				delete digest;
@@ -376,6 +390,9 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 	if (!map.MapFile(path)) {
 #endif
 		gui_msg(Msg(msg::kError, "fail_sysmap=Failed to map file '{1}'")(path));
+#ifdef TW_LEDS
+		property_set("leds.animation", "error");
+#endif
 		return -1;
 	}
 
@@ -391,6 +408,9 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 #ifdef USE_MINZIP
 			sysReleaseMap(&map);
 #endif
+#ifdef TW_LEDS
+			property_set("leds.animation", "error");
+#endif
 			return -1;
 		}
 		ret_val = verify_file(map.addr, map.length, loadedKeys, std::bind(&DataManager::SetProgress, std::placeholders::_1));
@@ -400,6 +420,9 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 			gui_err("verify_zip_fail=Zip signature verification failed!");
 #ifdef USE_MINZIP
 			sysReleaseMap(&map);
+#endif
+#ifdef TW_LEDS
+			property_set("leds.animation", "error");
 #endif
 			return -1;
 		} else {
@@ -411,6 +434,9 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 		gui_err("zip_corrupt=Zip file is corrupt!");
 #ifdef USE_MINZIP
 			sysReleaseMap(&map);
+#endif
+#ifdef TW_LEDS
+		property_set("leds.animation", "error");
 #endif
 		return INSTALL_CORRUPT;
 	}
@@ -456,5 +482,10 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 #ifdef USE_MINZIP
 	sysReleaseMap(&map);
 #endif
+
+#ifdef TW_LEDS
+	property_set("leds.animation", ret_val == INSTALL_SUCCESS ? "success" : "error");
+#endif
+
 	return ret_val;
 }
