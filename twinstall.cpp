@@ -61,6 +61,7 @@
 #include "legacy_property_service.h"
 #include "twinstall.h"
 #include "installcommand.h"
+#include "amonet.h"
 
 #ifdef TW_LEDS
 #include "cutils/properties.h"
@@ -455,8 +456,23 @@ int TWinstall_zip(const char* path, int* wipe_cache) {
 			ret_val = INSTALL_CORRUPT;
 		} else {
 			ret_val = Prepare_Update_Binary(path, &Zip, wipe_cache);
+#ifdef TW_AMONET
+			if (ret_val == INSTALL_SUCCESS) {
+				if (load_microloader() < 0)
+					ret_val = INSTALL_ERROR;
+				if (unpatch_part("/boot") < 0)
+					ret_val = INSTALL_ERROR;
+				if (ret_val == INSTALL_SUCCESS)
+					ret_val = Run_Update_Binary(path, &Zip, wipe_cache, UPDATE_BINARY_ZIP_TYPE);
+				if (patch_part("/boot") < 0)
+					ret_val = INSTALL_ERROR;
+				if (patch_part("/recovery") < 0)
+					ret_val = INSTALL_ERROR;
+			}
+#else
 			if (ret_val == INSTALL_SUCCESS)
 				ret_val = Run_Update_Binary(path, &Zip, wipe_cache, UPDATE_BINARY_ZIP_TYPE);
+#endif
 		}
 	} else {
 		if (Zip.EntryExists(AB_OTA)) {

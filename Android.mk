@@ -64,6 +64,14 @@ LOCAL_SRC_FILES := \
     tarWrite.c \
     twrpAdbBuFifo.cpp
 
+ifeq ($(TW_AMONET), true)
+  LOCAL_SRC_FILES += amonet.cpp
+  ifneq ($(TW_AMONET_MICROLOADER_SRC),)
+    LOCAL_SRC_FILES += ../../$(TW_AMONET_MICROLOADER_SRC)
+    LOCAL_CFLAGS += -DTW_MICROLOADER
+  endif
+endif
+
 ifneq ($(TARGET_RECOVERY_REBOOT_SRC),)
   LOCAL_SRC_FILES += $(TARGET_RECOVERY_REBOOT_SRC)
 endif
@@ -240,6 +248,9 @@ ifeq ($(TW_HAS_NO_BOOT_PARTITION), true)
 endif
 ifeq ($(TW_NO_REBOOT_BOOTLOADER), true)
     LOCAL_CFLAGS += -DTW_NO_REBOOT_BOOTLOADER
+endif
+ifeq ($(TW_AMONET), true)
+    LOCAL_CFLAGS += -DTW_AMONET
 endif
 ifeq ($(TW_HACKED_BL_BUTTON), true)
     LOCAL_CFLAGS += -DTW_HACKED_BL_BUTTON
