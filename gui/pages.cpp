@@ -527,7 +527,7 @@ bool Page::ProcessNode(xml_node<>* page, std::vector<xml_node<>*> *templates, in
 		}
 		else
 		{
-			LOGERR("Unknown object type: %s.\n", type.c_str());
+			//LOGERR("Unknown object type: %s.\n", type.c_str());
 		}
 #endif
 	}
