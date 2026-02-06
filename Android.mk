@@ -469,6 +469,9 @@ endif
 ifneq ($(TW_EXCLUDE_DEFAULT_USB_INIT), true)
     LOCAL_ADDITIONAL_DEPENDENCIES += init.recovery.usb.rc
 endif
+ifeq ($(TW_INCLUDE_BCBTOOL), true)
+    LOCAL_ADDITIONAL_DEPENDENCIES += amzn_bcbtool
+endif
 ifeq ($(TWRP_INCLUDE_LOGCAT), true)
     LOCAL_ADDITIONAL_DEPENDENCIES += logcat
     ifeq ($(TARGET_USES_LOGD), true)
