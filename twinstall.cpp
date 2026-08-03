@@ -64,6 +64,7 @@
 #include "twinstall.h"
 #include "installcommand.h"
 #include "twrpRepacker.hpp"
+#include "twrpStatus.hpp"
 extern "C" {
 	#include "gui/gui.h"
 }
@@ -340,7 +341,18 @@ static int Run_Update_Binary(const char *path, ZipWrap *Zip, int* wipe_cache, zi
 	return INSTALL_SUCCESS;
 }
 
+static int TWinstall_zip_internal(const char* path, int* wipe_cache, bool check_for_digest);
+
+// Wrapper so that the status of an install is reported no matter which of the
+// many ways out of the install below is taken
 int TWinstall_zip(const char* path, int* wipe_cache, bool check_for_digest) {
+	TWStatus::Operation_Start("install");
+	int ret_val = TWinstall_zip_internal(path, wipe_cache, check_for_digest);
+	TWStatus::Operation_End(ret_val == INSTALL_SUCCESS ? 0 : 1);
+	return ret_val;
+}
+
+static int TWinstall_zip_internal(const char* path, int* wipe_cache, bool check_for_digest) {
 	int ret_val, zip_verify = 1, unmount_system = 1, reflashtwrp = 0;
 
 	if (strcmp(path, "error") == 0) {

@@ -73,6 +73,7 @@ LOCAL_SRC_FILES := \
     twinstall.cpp \
     twrp-functions.cpp \
     twrpDigestDriver.cpp \
+    twrpStatus.cpp \
     openrecoveryscript.cpp \
     tarWrite.c \
     twrpAdbBuFifo.cpp \
@@ -411,6 +412,12 @@ ifneq ($(TW_NO_LEGACY_PROPS),)
 endif
 ifeq ($(TW_NO_SCREEN_UI), true)
 	LOCAL_CFLAGS += -DTW_NO_SCREEN_UI
+endif
+ifeq ($(TW_STATUS_NOTIFY), true)
+	LOCAL_CFLAGS += -DTW_STATUS_NOTIFY
+ifneq ($(TW_STATUS_HOOK),)
+	LOCAL_CFLAGS += -DTW_STATUS_HOOK=$(TW_STATUS_HOOK)
+endif
 endif
 ifneq ($(wildcard bionic/libc/include/sys/capability.h),)
     LOCAL_CFLAGS += -DHAVE_CAPABILITIES

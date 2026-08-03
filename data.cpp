@@ -36,6 +36,7 @@
 #include "set_metadata.h"
 #include "gui/gui.hpp"
 #include "infomanager.hpp"
+#include "twrpStatus.hpp"
 
 #define DEVID_MAX 64
 #define HWID_MAX 32
@@ -437,6 +438,9 @@ int DataManager::SetValue(const string& varName, const string& value, const int 
 #endif
 	if (varName == "tw_storage_path") {
 		SetBackupFolder();
+	}
+	else if (varName == "ui_progress") {
+		TWStatus::Set_Progress(atoi(value.c_str()));
 	}
 	gui_notifyVarChange(varName.c_str(), value.c_str());
 	return 0;

@@ -54,6 +54,7 @@ extern "C" {
 #include "openrecoveryscript.hpp"
 #include "variables.h"
 #include "twrpAdbBuFifo.hpp"
+#include "twrpStatus.hpp"
 #ifdef TW_USE_NEW_MINADBD
 #include "minadbd/minadbd.h"
 #else
@@ -111,6 +112,7 @@ int main(int argc, char **argv) {
 	property_set("twrp.crash_counter", crash_prop_val);
 	property_set("ro.twrp.boot", "1");
 	property_set("ro.twrp.version", TW_VERSION_STR);
+	TWStatus::Set(TWStatus::STATUS_BOOT);
 
 	time_t StartupTime = time(NULL);
 	printf("Starting TWRP %s-%s on %s (pid %d)\n", TW_VERSION_STR, TW_GIT_REVISION, ctime(&StartupTime), getpid());
@@ -419,6 +421,9 @@ int main(int argc, char **argv) {
 	adb_bu_fifo->threadAdbBuFifo();
 
 	TWFunc::checkforapp(); //Checking compatibility for TWRP app
+
+	// Nothing ran during startup that had anything to say, so we are idle
+	TWStatus::Ready();
 
 	// Launch the main GUI
 	gui_start();

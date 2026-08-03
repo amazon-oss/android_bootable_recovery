@@ -58,6 +58,7 @@ extern "C" {
 #include "rapidxml.hpp"
 #include "objects.hpp"
 #include "../tw_atomic.hpp"
+#include "../twrpStatus.hpp"
 
 GUIAction::mapFunc GUIAction::mf;
 std::set<string> GUIAction::setActionsRunningInCallerThread;
@@ -506,6 +507,7 @@ void GUIAction::operation_start(const string operation_name)
 	DataManager::SetValue("ui_portion_size", 0);
 	DataManager::SetValue("ui_portion_start", 0);
 	DataManager::SetValue("tw_operation", operation_name);
+	TWStatus::Operation_Start(operation_name);
 	DataManager::SetValue("tw_operation_state", 0);
 	DataManager::SetValue("tw_operation_status", 0);
 	bool tw_ab_device = TWFunc::get_log_dir() != CACHE_LOGS_DIR;
@@ -534,6 +536,8 @@ void GUIAction::operation_end(const int operation_status)
 	DataManager::SetValue("tw_operation_state", 1);
 	DataManager::SetValue(TW_ACTION_BUSY, 0);
 	blankTimer.resetTimerAndUnblank();
+	// Read it back so that a simulated failure is reported as one too
+	TWStatus::Operation_End(DataManager::GetIntValue("tw_operation_status"));
 	property_set("twrp.action_complete", "1");
 	time(&Stop);
 

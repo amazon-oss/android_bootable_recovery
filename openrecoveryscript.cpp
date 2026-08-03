@@ -52,6 +52,7 @@
 #include "gui/pages.hpp"
 #include "orscmd/orscmd.h"
 #include "twinstall.h"
+#include "twrpStatus.hpp"
 extern "C" {
 	#include "gui/gui.h"
 	#include "cutils/properties.h"
@@ -105,6 +106,8 @@ int OpenRecoveryScript::run_script_file(void) {
 	     value[SCRIPT_COMMAND_SIZE], mount[SCRIPT_COMMAND_SIZE],
 	     value1[SCRIPT_COMMAND_SIZE], value2[SCRIPT_COMMAND_SIZE];
 	char *val_start, *tok;
+
+	TWStatus::Operation_Start("script");
 
 	FILE *fp = fopen(SCRIPT_FILE_TMP, "r");
 	if (fp != NULL) {
@@ -385,7 +388,9 @@ int OpenRecoveryScript::run_script_file(void) {
 				pid_t sideload_child_pid;
 
 				gui_msg("start_sideload=Starting ADB sideload feature...");
+				TWStatus::Set(TWStatus::STATUS_SIDELOAD);
 				ret_val = apply_from_adb("/", &sideload_child_pid);
+				TWStatus::Set(TWStatus::STATUS_BUSY);
 				if (ret_val != 0) {
 					if (ret_val == -2)
 						gui_err("need_new_adb=You need adb 1.0.32 or newer to sideload to this device.");
@@ -443,6 +448,7 @@ int OpenRecoveryScript::run_script_file(void) {
 	} else {
 		gui_msg(Msg(msg::kError, "error_opening_strerr=Error opening: '{1}' ({2})")(SCRIPT_FILE_TMP)(
 			strerror(errno)));
+		TWStatus::Operation_End(1);
 		return 1;
 	}
 
@@ -461,6 +467,8 @@ int OpenRecoveryScript::run_script_file(void) {
 		}
 		gui_msg("done=Done.");
 	}
+	TWStatus::Operation_End(ret_val);
+
 	if (sideload)
 		ret_val = 1;  // Forces booting to the home page after sideload
 	return ret_val;
