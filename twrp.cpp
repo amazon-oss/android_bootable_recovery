@@ -318,6 +318,10 @@ int main(int argc, char **argv) {
 		LOGINFO("Is encrypted, do decrypt page first\n");
 	if (DataManager::GetIntValue(TW_IS_FBE))
 		DataManager::SetValue("tw_crypto_user_id", "0");
+#ifdef TW_NO_SCREEN_UI
+	// No page to ask for the password on, decrypt via 'twrp decrypt <password>'
+	LOGINFO("No screen, use 'twrp decrypt <password>' to decrypt data.\n");
+#else
 	if (gui_startPage("decrypt", 1, 1) != 0) {
 		LOGERR("Failed to start decrypt GUI page.\n");
 		} else {
@@ -325,6 +329,7 @@ int main(int argc, char **argv) {
 			TWFunc::check_selinux_support();
 			gui_loadCustomResources();
 		}
+#endif
 	} else if (datamedia) {
 		TWFunc::check_selinux_support();
 		if (tw_get_default_metadata(DataManager::GetSettingsStoragePath().c_str()) != 0) {
@@ -386,10 +391,16 @@ int main(int argc, char **argv) {
 	if (sys) {
 		if ((DataManager::GetIntValue("tw_mount_system_ro") == 0 && sys->Check_Lifetime_Writes() == 0) || DataManager::GetIntValue("tw_mount_system_ro") == 2) {
 			if (DataManager::GetIntValue("tw_never_show_system_ro_page") == 0) {
+#ifdef TW_NO_SCREEN_UI
+				// No page to ask the user on, so keep system read only.
+				// Set tw_mount_system_ro to 0 and reboot to change this.
+				LOGINFO("System has never been changed, leaving it read only.\n");
+#else
 				DataManager::SetValue("tw_back", "main");
 				if (gui_startPage("system_readonly", 1, 1) != 0) {
 					LOGERR("Failed to start system_readonly GUI page.\n");
 				}
+#endif
 			} else if (DataManager::GetIntValue("tw_mount_system_ro") == 0) {
 				sys->Change_Mount_Read_Only(false);
 				if (ven)

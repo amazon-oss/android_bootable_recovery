@@ -1316,6 +1316,12 @@ void PageManager::LoadLanguageList(ZipWrap* package) {
 }
 
 void PageManager::LoadLanguage(string filename) {
+	if (!mCurrentSet) {
+		// No package was loaded, so there is nothing to translate
+		LOGINFO("No page set loaded, not loading language '%s'\n", filename.c_str());
+		return;
+	}
+
 	string actual_filename;
 	if (TWFunc::Path_Exists(TWRES "customlanguages/" + filename + ".xml"))
 		actual_filename = TWRES "customlanguages/" + filename + ".xml";

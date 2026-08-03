@@ -800,6 +800,10 @@ void DataManager::SetDefaultValues()
 	mData.SetValue("tw_sleep", "5");
 
 	// Brightness handling
+#ifdef TW_NO_SCREEN_UI
+	LOGINFO("No screen, skipping brightness detection\n");
+	mConst.SetValue("tw_has_brightnesss_file", "0");
+#else
 	string findbright;
 #ifdef TW_BRIGHTNESS_PATH
 	findbright = EXPAND(TW_BRIGHTNESS_PATH);
@@ -875,6 +879,7 @@ void DataManager::SetDefaultValues()
 		TWFunc::Set_Brightness(maxBrightness);
 #endif
 	}
+#endif // ifdef TW_NO_SCREEN_UI
 
 #ifndef TW_EXCLUDE_ENCRYPTED_BACKUPS
 	mConst.SetValue("tw_include_encrypted_backup", "1");

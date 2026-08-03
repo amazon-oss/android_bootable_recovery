@@ -618,6 +618,10 @@ int OpenRecoveryScript::Backup_Command(string Options) {
 
 // this is called by main()
 void OpenRecoveryScript::Run_OpenRecoveryScript(void) {
+#ifdef TW_NO_SCREEN_UI
+	// There is no action page to run this on, so run it right here instead
+	Run_OpenRecoveryScript_Action();
+#else
 	DataManager::SetValue("tw_back", "main");
 	DataManager::SetValue("tw_action", "openrecoveryscript");
 	DataManager::SetValue("tw_action_param", "");
@@ -637,6 +641,7 @@ void OpenRecoveryScript::Run_OpenRecoveryScript(void) {
 	if (gui_startPage("action_page", 0, 1) != 0) {
 		LOGERR("Failed to load OpenRecoveryScript GUI page.\n");
 	}
+#endif
 }
 
 // this is called by the "openrecoveryscript" GUI action called via action page from Run_OpenRecoveryScript

@@ -409,6 +409,9 @@ endif
 ifneq ($(TW_NO_LEGACY_PROPS),)
 	LOCAL_CFLAGS += -DTW_NO_LEGACY_PROPS
 endif
+ifeq ($(TW_NO_SCREEN_UI), true)
+	LOCAL_CFLAGS += -DTW_NO_SCREEN_UI
+endif
 ifneq ($(wildcard bionic/libc/include/sys/capability.h),)
     LOCAL_CFLAGS += -DHAVE_CAPABILITIES
 endif

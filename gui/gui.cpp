@@ -470,6 +470,14 @@ static void ors_command_read()
 			LOGINFO("Command cannot be performed, operation in progress.\n");
 			fclose(orsout);
 		} else {
+#ifdef TW_NO_SCREEN_UI
+			// There is no theme loaded and no action page to run the command
+			// on, so run it inline and then go back to listening.
+			// Run_CLI_Command() calls ors_command_done() when it is finished.
+			gui_set_FILE(orsout);
+			OpenRecoveryScript::Call_After_CLI_Command(ors_command_done);
+			OpenRecoveryScript::Run_CLI_Command(command);
+#else
 			if (strlen(command) == 11 && strncmp(command, "dumpstrings", 11) == 0) {
 				gui_set_FILE(orsout);
 				PageManager::GetResources()->DumpStrings();
@@ -500,6 +508,7 @@ static void ors_command_read()
 				// now immediately return to the GUI main loop (the action runs in the background thread)
 				// put all things that need to be done after the command is finished into ors_command_done, not here
 			}
+#endif // ifdef TW_NO_SCREEN_UI
 		}
 	}
 }
@@ -661,6 +670,61 @@ static int runPages(const char *page_name, const int stop_on_page_done)
 	return 0;
 }
 
+#ifdef TW_NO_SCREEN_UI
+// Main loop for devices that have no screen. There is nothing to render and no
+// touch or key input to process, so all we do is wait for commands coming in
+// from the "twrp" binary and for uevents until something sets tw_gui_done.
+static int runHeadless(void)
+{
+	DataManager::SetValue("tw_page_done", 0);
+	DataManager::SetValue("tw_gui_done", 0);
+	DataManager::SetValue("tw_loaded", 1);
+
+	gGuiRunning = 1;
+
+#ifndef TW_OEM_BUILD
+	// Normally set up by gui_startPage(), which we never get to run
+	if (ors_read_fd < 0)
+		setup_ors_command();
+#endif
+
+	struct timeval timeout;
+	fd_set fdset;
+
+	for (;;)
+	{
+		FD_ZERO(&fdset);
+		// Nothing needs to be redrawn, so we can afford to block for a while
+		timeout.tv_sec = 0;
+		timeout.tv_usec = 100000;
+		if (PartitionManager.uevent_pfd.fd > 0) {
+			FD_SET(PartitionManager.uevent_pfd.fd, &fdset);
+		}
+#ifndef TW_OEM_BUILD
+		if (ors_read_fd > 0 && !orsout) { // orsout is non-NULL if a command is still running
+			FD_SET(ors_read_fd, &fdset);
+		}
+#endif
+		if (select(select_fd, &fdset, NULL, NULL, &timeout) > 0) {
+			if (PartitionManager.uevent_pfd.fd > 0 && FD_ISSET(PartitionManager.uevent_pfd.fd, &fdset))
+				PartitionManager.read_uevent();
+			if (ors_read_fd > 0 && !orsout && FD_ISSET(ors_read_fd, &fdset))
+				ors_command_read();
+		}
+
+		if (DataManager::GetIntValue("tw_gui_done") != 0)
+			break;
+	}
+
+	if (ors_read_fd > 0)
+		close(ors_read_fd);
+	ors_read_fd = -1;
+	set_select_fd();
+	gGuiRunning = 0;
+	return 0;
+}
+#endif // ifdef TW_NO_SCREEN_UI
+
 int gui_forceRender(void)
 {
 	gForceRender.set_value(1);
@@ -689,6 +753,10 @@ std::string gui_parse_text(std::string str)
 	// and string resources (%@resource_name%)
 	size_t pos = 0, next, end;
 
+	// NULL when no package is loaded (e.g. TW_NO_SCREEN_UI), in which case we
+	// fall back to the default that is baked into the lookup itself.
+	const ResourceManager* res = PageManager::GetResources();
+
 	while (1)
 	{
 		next = str.find("{@", pos);
@@ -705,11 +773,11 @@ std::string gui_parse_text(std::string str)
 		size_t default_loc = var.find('=', 0);
 		std::string lookup;
 		if (default_loc == std::string::npos) {
-			str.insert(next, PageManager::GetResources()->FindString(var));
+			str.insert(next, res ? res->FindString(var) : var);
 		} else {
 			lookup = var.substr(0, default_loc);
 			std::string default_string = var.substr(default_loc + 1, var.size() - default_loc - 1);
-			str.insert(next, PageManager::GetResources()->FindString(lookup, default_string));
+			str.insert(next, res ? res->FindString(lookup, default_string) : default_string);
 		}
 	}
 	pos = 0;
@@ -734,7 +802,7 @@ std::string gui_parse_text(std::string str)
 			std::string value;
 			if (var.size() > 0 && var[0] == '@') {
 				// this is a string resource ("%@string_name%")
-				value = PageManager::GetResources()->FindString(var.substr(1));
+				value = res ? res->FindString(var.substr(1)) : var.substr(1);
 				str.insert(next, value);
 			}
 			else if (DataManager::GetValue(var, value) == 0)
@@ -746,11 +814,20 @@ std::string gui_parse_text(std::string str)
 }
 
 std::string gui_lookup(const std::string& resource_name, const std::string& default_value) {
-	return PageManager::GetResources()->FindString(resource_name, default_value);
+	const ResourceManager* res = PageManager::GetResources();
+	// No package loaded (e.g. TW_NO_SCREEN_UI), use the untranslated string
+	if (!res)
+		return default_value;
+	return res->FindString(resource_name, default_value);
 }
 
 extern "C" int gui_init(void)
 {
+#ifdef TW_NO_SCREEN_UI
+	printf("TW_NO_SCREEN_UI := true\n");
+	printf("Skipping graphics, brightness and input initialization.\n");
+	return 0;
+#else
 	gr_init();
 	TWFunc::Set_Brightness(DataManager::GetStrValue("tw_brightness"));
 
@@ -776,10 +853,18 @@ extern "C" int gui_init(void)
 #endif
 	ev_init();
 	return 0;
+#endif // ifdef TW_NO_SCREEN_UI
 }
 
 extern "C" int gui_loadResources(void)
 {
+#ifdef TW_NO_SCREEN_UI
+	// Loading a theme requires a framebuffer to scale it against and the
+	// pages would never be rendered anyway. gGuiInitialized deliberately
+	// stays 0 so that gui_startPage() refuses to start any page.
+	LOGINFO("No screen, not loading theme packages.\n");
+	return 0;
+#else
 #ifndef TW_OEM_BUILD
 	int check = 0;
 	DataManager::GetValue(TW_IS_ENCRYPTED, check);
@@ -839,10 +924,15 @@ error:
 	LOGERR("An internal error has occurred: unable to load theme.\n");
 	gGuiInitialized = 0;
 	return -1;
+#endif // ifdef TW_NO_SCREEN_UI
 }
 
 extern "C" int gui_loadCustomResources(void)
 {
+#ifdef TW_NO_SCREEN_UI
+	LOGINFO("No screen, not loading custom theme.\n");
+	return 0;
+#else
 #ifndef TW_OEM_BUILD
 	if (!PartitionManager.Mount_Settings_Storage(false)) {
 		LOGINFO("Unable to mount settings storage during GUI startup.\n");
@@ -873,17 +963,26 @@ error:
 	gGuiInitialized = 0;
 	return -1;
 #endif
+#endif // ifdef TW_NO_SCREEN_UI
 }
 
 extern "C" int gui_start(void)
 {
+#ifdef TW_NO_SCREEN_UI
+	return runHeadless();
+#else
 	return gui_startPage("main", 1, 0);
+#endif
 }
 
 extern "C" int gui_startPage(const char *page_name, __attribute__((unused)) const int allow_commands, int stop_on_page_done)
 {
-	if (!gGuiInitialized)
+	// With TW_NO_SCREEN_UI gGuiInitialized is never set, so every request to
+	// start a page fails here and callers fall back to their default action.
+	if (!gGuiInitialized) {
+		LOGINFO("Not starting page '%s', the GUI is not initialized.\n", page_name ? page_name : "");
 		return -1;
+	}
 
 	// Set the default package
 	PageManager::SelectPackage("TWRP");
