@@ -530,6 +530,9 @@ endif
 ifneq ($(TW_EXCLUDE_DEFAULT_USB_INIT), true)
     TWRP_REQUIRED_MODULES += init.recovery.usb.rc
 endif
+ifeq ($(TW_INCLUDE_BCBTOOL), true)
+    TWRP_REQUIRED_MODULES += amzn_bcbtool
+endif
 ifeq ($(TWRP_INCLUDE_LOGCAT), true)
     TWRP_REQUIRED_MODULES += logcat
     ifeq ($(TARGET_USES_LOGD), true)
