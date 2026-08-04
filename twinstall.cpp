@@ -460,16 +460,18 @@ static int TWinstall_zip_internal(const char* path, int* wipe_cache, bool check_
 			LOGINFO("AB zip\n");
 			gui_msg(Msg(msg::kHighlight, "flash_ab_inactive=Flashing A/B zip to inactive slot: {1}")(PartitionManager.Get_Active_Slot_Display()=="A"?"B":"A"));
 			// We need this so backuptool can do its magic
+			bool has_vendor = PartitionManager.Find_Partition_By_Path("/vendor") != NULL;
 			bool system_mount_state = PartitionManager.Is_Mounted_By_Path(PartitionManager.Get_Android_Root_Path());
-			bool vendor_mount_state = PartitionManager.Is_Mounted_By_Path("/vendor");
+			bool vendor_mount_state = has_vendor && PartitionManager.Is_Mounted_By_Path("/vendor");
 			PartitionManager.Mount_By_Path(PartitionManager.Get_Android_Root_Path(), true);
-			PartitionManager.Mount_By_Path("/vendor", true);
+			if (has_vendor)
+				PartitionManager.Mount_By_Path("/vendor", true);
 			TWFunc::Exec_Cmd("cp -f /sbin/sh /tmp/sh");
 			mount("/tmp/sh", "/system/bin/sh", "auto", MS_BIND, NULL);
 			ret_val = Run_Update_Binary(path, &Zip, wipe_cache, AB_OTA_ZIP_TYPE);
 			umount("/system/bin/sh");
 			unlink("/tmp/sh");
-			if (!vendor_mount_state)
+			if (has_vendor && !vendor_mount_state)
 				PartitionManager.UnMount_By_Path("/vendor", true);
 			if (!system_mount_state)
 				PartitionManager.UnMount_By_Path(PartitionManager.Get_Android_Root_Path(), true);
