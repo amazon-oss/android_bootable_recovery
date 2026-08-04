@@ -153,6 +153,16 @@ define TW_CUSTOM_THEME_WARNING_MSG
 ****************************************************************************
 endef
 
+ifeq ($(TW_NO_SCREEN_UI), true)
+
+# Nothing is ever rendered and no theme package is loaded at runtime, so there
+# is no theme to pick and no fonts or languages to ship. This also means the
+# device does not have to declare a resolution or a TW_THEME just to build.
+TWRP_RES :=
+TWRP_THEME_LOC :=
+
+else
+
 TWRP_RES := $(LOCAL_PATH)/theme/common/fonts
 TWRP_RES += $(LOCAL_PATH)/theme/common/languages
 ifeq ($(TW_EXTRA_LANGUAGES),true)
@@ -214,13 +224,15 @@ else
     endif
 endif
 
+endif # ifeq ($(TW_NO_SCREEN_UI), true)
+
 TWRP_RES += $(TW_ADDITIONAL_RES)
 
 TWRP_RES_GEN := $(intermediates)/twrp
 $(TWRP_RES_GEN):
 	mkdir -p $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)
-	cp -fr $(TWRP_RES) $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)
-	cp -fr $(TWRP_THEME_LOC)/* $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)
+	$(if $(strip $(TWRP_RES)),cp -fr $(strip $(TWRP_RES)) $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH))
+	$(if $(strip $(TWRP_THEME_LOC)),cp -fr $(strip $(TWRP_THEME_LOC))/* $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH))
 
 LOCAL_GENERATED_SOURCES := $(TWRP_RES_GEN)
 LOCAL_SRC_FILES := twrp $(TWRP_RES_GEN)

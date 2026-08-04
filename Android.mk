@@ -630,9 +630,12 @@ endif
 
 TW_THEME_VERSION := $(shell grep TW_THEME_VERSION bootable/recovery/variables.h | cut -d ' ' -f 3)
 
+# No theme is shipped when there is no screen, so there is nothing to stamp
+ifneq ($(TW_NO_SCREEN_UI), true)
 LOCAL_POST_INSTALL_CMD += \
     sed -i "s/{themeversion}/$(TW_THEME_VERSION)/" $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)splash.xml; \
     sed -i "s/{themeversion}/$(TW_THEME_VERSION)/" $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)ui.xml;
+endif
 
 include $(BUILD_EXECUTABLE)
 
