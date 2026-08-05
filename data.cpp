@@ -442,6 +442,12 @@ int DataManager::SetValue(const string& varName, const string& value, const int 
 	else if (varName == "ui_progress") {
 		TWStatus::Set_Progress(atoi(value.c_str()));
 	}
+	else if (varName == "ui_progress_portion") {
+		TWStatus::Set_Progress_Portion(atof(value.c_str()));
+	}
+	else if (varName == "ui_progress_frames") {
+		TWStatus::Set_Progress_Frames(atol(value.c_str()));
+	}
 	gui_notifyVarChange(varName.c_str(), value.c_str());
 	return 0;
 }

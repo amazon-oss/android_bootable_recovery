@@ -39,11 +39,23 @@ public:
 	static void Operation_End(int operation_status);
 	static void Set_Progress(int percent);
 
+	// On a device with a screen the progress bar is advanced frame by frame by
+	// GUIProgressBar::Update(), which never runs when there is nothing to
+	// render. These two feed the same numbers to our own interpolator so that
+	// progress keeps moving during an install instead of sitting on whatever
+	// portion boundary was crossed last.
+	static void Set_Progress_Portion(float portion);
+	static void Set_Progress_Frames(long frames);
+
 private:
 	static const char* Status_Name(Status status);
 	static std::string Normalize(const std::string& name);
 	static void Publish();
 	static void Run_Hook(const char* status, const char* operation, const char* progress);
+	static void Set_Progress_Locked(int percent);
+	static void Flush_Slide_Locked();
+	static void Start_Slide_Thread_Locked();
+	static void* Slide_Thread(void* arg);
 };
 
 #endif // _TWRPSTATUS_HPP

@@ -36,11 +36,29 @@
 // round trip to the property service, so only publish whole steps.
 #define TW_PROGRESS_STEP 5
 
+// ui_progress_frames is handed to us as a frame count that assumes the GUI
+// renders at this rate, so it is the rate we have to play it back at.
+#define TW_PROGRESS_FPS 48
+
+// How often the slide is advanced. Publishing is rate limited by
+// TW_PROGRESS_STEP anyway, so there is no point in waking up 48 times a second
+// to move a twelve pixel LED ring.
+#define TW_SLIDE_INTERVAL_MS 100
+
 static pthread_mutex_t status_lock = PTHREAD_MUTEX_INITIALIZER;
 static TWStatus::Status current_status = TWStatus::STATUS_BOOT;
 static std::vector<std::string> operation_stack;
 static int current_progress = 0;
 static bool operation_failed = false;
+
+// Mirrors GUIProgressBar's mSlide/mSlideInc/mSlideFrames. slide_portion is the
+// amount of progress the pending portion is worth, which is added to
+// slide_position over slide_frames frames once we are told how long it lasts.
+static float slide_portion = 0.0f;
+static float slide_position = 0.0f;
+static float slide_increment = 0.0f;
+static long slide_frames = 0;
+static bool slide_thread_started = false;
 
 const char* TWStatus::Status_Name(Status status)
 {
@@ -151,6 +169,10 @@ void TWStatus::Operation_Start(const std::string& name)
 	operation_stack.push_back(Normalize(name));
 	current_status = STATUS_BUSY;
 	current_progress = 0;
+	slide_frames = 0;
+	slide_increment = 0.0f;
+	slide_portion = 0.0f;
+	slide_position = 0.0f;
 	Publish();
 	pthread_mutex_unlock(&status_lock);
 }
@@ -166,6 +188,11 @@ void TWStatus::Operation_End(int operation_status)
 	if (operation_status != 0)
 		operation_failed = true;
 
+	// Whatever the portion still had left is moot now that it is over.
+	slide_frames = 0;
+	slide_increment = 0.0f;
+	slide_portion = 0.0f;
+
 	if (!operation_stack.empty())
 		operation_stack.pop_back();
 
@@ -178,6 +205,20 @@ void TWStatus::Operation_End(int operation_status)
 	pthread_mutex_unlock(&status_lock);
 }
 
+void TWStatus::Set_Progress_Locked(int percent)
+{
+	if (percent < 0)
+		percent = 0;
+	else if (percent > 100)
+		percent = 100;
+
+	if (current_status == STATUS_BUSY &&
+			percent / TW_PROGRESS_STEP != current_progress / TW_PROGRESS_STEP) {
+		current_progress = percent;
+		Publish();
+	}
+}
+
 void TWStatus::Set_Progress(int percent)
 {
 	if (percent < 0)
@@ -186,10 +227,102 @@ void TWStatus::Set_Progress(int percent)
 		percent = 100;
 
 	pthread_mutex_lock(&status_lock);
-	if (current_status == STATUS_BUSY &&
-			percent / TW_PROGRESS_STEP != current_progress / TW_PROGRESS_STEP) {
-		current_progress = percent;
-		Publish();
-	}
+	// An explicit write is authoritative. ShowProgress() always sets ui_progress
+	// to the end of every portion that came before it, so anything the previous
+	// portion still had queued up is already accounted for in this number and
+	// must not be replayed on top of it.
+	slide_frames = 0;
+	slide_increment = 0.0f;
+	slide_position = (float)percent;
+	Set_Progress_Locked(percent);
 	pthread_mutex_unlock(&status_lock);
+}
+
+// Play out everything the current portion still had left. A new portion always
+// supersedes the one before it, exactly like GUIProgressBar::NotifyVarChange().
+void TWStatus::Flush_Slide_Locked()
+{
+	if (slide_frames <= 0)
+		return;
+
+	slide_position += slide_increment * (float)slide_frames;
+	slide_frames = 0;
+	slide_increment = 0.0f;
+	Set_Progress_Locked((int)slide_position);
+}
+
+void TWStatus::Set_Progress_Portion(float portion)
+{
+	pthread_mutex_lock(&status_lock);
+	Flush_Slide_Locked();
+	slide_portion = portion;
+	pthread_mutex_unlock(&status_lock);
+}
+
+void TWStatus::Set_Progress_Frames(long frames)
+{
+	pthread_mutex_lock(&status_lock);
+	Flush_Slide_Locked();
+
+	// ui_progress_portion is a delta, not a target: the bar climbs by that much
+	// on top of where it already is, spread over the frames we are given here.
+	if (frames > 0 && slide_portion > 0.0f) {
+		slide_frames = frames;
+		slide_increment = slide_portion / (float)frames;
+		slide_position = (float)current_progress;
+		Start_Slide_Thread_Locked();
+	}
+
+	slide_portion = 0.0f;
+	pthread_mutex_unlock(&status_lock);
+}
+
+void* TWStatus::Slide_Thread(void* /* arg */)
+{
+	// Frames owed but not yet spent, so a coarse tick still plays the slide
+	// back at the rate it was authored for.
+	float owed = 0.0f;
+
+	for (;;) {
+		usleep(TW_SLIDE_INTERVAL_MS * 1000);
+
+		pthread_mutex_lock(&status_lock);
+		if (slide_frames > 0) {
+			owed += (float)TW_PROGRESS_FPS * TW_SLIDE_INTERVAL_MS / 1000.0f;
+
+			long spend = (long)owed;
+			if (spend > slide_frames)
+				spend = slide_frames;
+			owed -= (float)spend;
+
+			if (spend > 0) {
+				slide_position += slide_increment * (float)spend;
+				slide_frames -= spend;
+				Set_Progress_Locked((int)slide_position);
+			}
+		} else {
+			owed = 0.0f;
+		}
+		pthread_mutex_unlock(&status_lock);
+	}
+
+	return NULL;
+}
+
+void TWStatus::Start_Slide_Thread_Locked()
+{
+#ifndef TW_STATUS_NOTIFY
+	// Nobody is listening, so there is nothing to interpolate for.
+	return;
+#endif
+	if (slide_thread_started)
+		return;
+
+	pthread_t thread;
+	if (pthread_create(&thread, NULL, Slide_Thread, NULL) != 0) {
+		LOGERR("Unable to start status progress thread\n");
+		return;
+	}
+	pthread_detach(thread);
+	slide_thread_started = true;
 }
