@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <stdlib.h>
 #include <string>
 #include <vector>
@@ -129,6 +130,25 @@ static int check_newer_ab_build(ZipWrap* zip)
     property_get("ro.product.name", propname, "");
     const std::string& pkg_device = metadata["pre-device"];
 
+    // Every name this build is willing to answer to. The properties come first,
+    // then whatever TW_OTA_ASSERT_DEVICES adds, which is how a device that got
+    // renamed upstream keeps taking packages built under either name.
+    std::vector<std::string> local_devices;
+    for (const char* prop : { value, propmodel, propname }) {
+        if (prop[0] != '\0') {
+            local_devices.push_back(prop);
+        }
+    }
+#ifdef TW_OTA_ASSERT_DEVICES
+    for (const std::string& extra : android::base::Split(TW_OTA_ASSERT_DEVICES, ",")) {
+        std::string extraName = android::base::Trim(extra);
+        if (!extraName.empty() &&
+                std::find(local_devices.begin(), local_devices.end(), extraName) == local_devices.end()) {
+            local_devices.push_back(extraName);
+        }
+    }
+#endif
+
     std::vector<std::string> assertResults = android::base::Split(pkg_device, ",");
 
     bool deviceExists = false;
@@ -136,15 +156,18 @@ static int check_newer_ab_build(ZipWrap* zip)
     for(const std::string& deviceAssert : assertResults)
     {
         std::string assertName = android::base::Trim(deviceAssert);
-        if ((assertName == value || assertName == propmodel || assertName == propname ) && !assertName.empty()) {
+        if (assertName.empty()) {
+            continue;
+        }
+        if (std::find(local_devices.begin(), local_devices.end(), assertName) != local_devices.end()) {
             deviceExists = true;
             break;
         }
     }
 
     if (!deviceExists) {
-        printf("Package is for product %s but expected %s\n",
-            pkg_device.c_str(), value);
+        printf("Package is for product %s but expected one of %s\n",
+            pkg_device.c_str(), android::base::Join(local_devices, ", ").c_str());
         return INSTALL_ERROR;
     }
 

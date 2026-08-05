@@ -820,6 +820,9 @@ LOCAL_CFLAGS := -std=gnu++0x
 LOCAL_SRC_FILES := adb_install.cpp legacy_property_service.cpp set_metadata.cpp tw_atomic.cpp installcommand.cpp zipwrap.cpp
 LOCAL_SHARED_LIBRARIES += libc liblog libcutils libmtdutils libfusesideload libselinux libminzip
 LOCAL_CFLAGS += -DRECOVERY_API_VERSION=$(RECOVERY_API_VERSION)
+ifneq ($(TW_OTA_ASSERT_DEVICES),)
+    LOCAL_CFLAGS += -DTW_OTA_ASSERT_DEVICES='"$(TW_OTA_ASSERT_DEVICES)"'
+endif
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23; echo $$?),0)
     LOCAL_SHARED_LIBRARIES += libstdc++ libstlport
     LOCAL_C_INCLUDES += bionic external/stlport/stlport
