@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -163,6 +164,8 @@ bool MtpServer::hasStorage(MtpStorageID id) {
 }
 
 void MtpServer::run() {
+	prctl(PR_SET_NAME, "MtpServer");
+
 	if (mHandle->start(mPtp)) {
 		MTPE("Failed to start usb driver!");
 		mHandle->close();

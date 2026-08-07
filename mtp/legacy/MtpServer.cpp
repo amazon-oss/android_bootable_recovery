@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <sys/prctl.h>
 #include "../../twcommon.h"
 #include "../../set_metadata.h"
 #include <cutils/properties.h>
@@ -184,6 +185,8 @@ bool MtpServer::hasStorage(MtpStorageID id) {
 }
 
 void MtpServer::run(int fd) {
+	prctl(PR_SET_NAME, "MtpServer");
+
 	if (fd < 0)
 		return;
 
