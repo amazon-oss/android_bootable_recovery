@@ -228,11 +228,21 @@ endif # ifeq ($(TW_NO_SCREEN_UI), true)
 
 TWRP_RES += $(TW_ADDITIONAL_RES)
 
+# The theme ships {themeversion} as a placeholder so that it only ever has to be
+# bumped in variables.h. Stamp it here, right after the theme is copied: this
+# recipe re-runs on every build and would otherwise restore the placeholder over
+# an already stamped copy.
+TW_THEME_VERSION := $(shell grep TW_THEME_VERSION $(LOCAL_PATH)/../variables.h | cut -d ' ' -f 3)
+
 TWRP_RES_GEN := $(intermediates)/twrp
 $(TWRP_RES_GEN):
 	mkdir -p $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)
 	$(if $(strip $(TWRP_RES)),cp -fr $(strip $(TWRP_RES)) $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH))
 	$(if $(strip $(TWRP_THEME_LOC)),cp -fr $(strip $(TWRP_THEME_LOC))/* $(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH))
+	$(if $(strip $(TWRP_THEME_LOC)),for xml in splash.xml ui.xml; do \
+	    f=$(TARGET_RECOVERY_ROOT_OUT)$(TWRES_PATH)$$xml; \
+	    if [ -f $$f ]; then sed -i "s/{themeversion}/$(TW_THEME_VERSION)/" $$f; fi; \
+	done)
 
 LOCAL_GENERATED_SOURCES := $(TWRP_RES_GEN)
 LOCAL_SRC_FILES := twrp $(TWRP_RES_GEN)
