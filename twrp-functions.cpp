@@ -1353,6 +1353,9 @@ bool TWFunc::Is_TWRP_App_In_System() {
 }
 
 void TWFunc::checkforapp(){
+#ifdef TW_EXCLUDE_TWRPAPP
+	DataManager::SetValue("tw_app_install_status", 2); // 0 = no status, 1 = not installed, 2 = already installed or do not install
+#else
 
 	string sdkverstr = System_Property_Get("ro.build.version.sdk");
 	int sdkver = 0;
@@ -1396,7 +1399,7 @@ void TWFunc::checkforapp(){
 	DataManager::SetValue("tw_app_install_status", 1); // 0 = no status, 1 = not installed, 2 = already installed
 exit:
 	return;
-
+#endif
 }
 
 int TWFunc::Property_Override(string Prop_Name, string Prop_Value) {
