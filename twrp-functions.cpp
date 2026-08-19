@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fstab/fstab.h>
+#include <fs_mgr_dm_linear.h>
 #include <sys/mount.h>
 #include <sys/reboot.h>
 #include <sys/sendfile.h>
@@ -1182,6 +1183,78 @@ std::string TWFunc::to_string(unsigned long value) {
 	return os.str();
 }
 
+static bool Rename_Vendor_Recovery_Patch(void) {
+	const std::string mount_point = "/vendor";
+	const std::string patch = mount_point + "/recovery-from-boot.p";
+	const std::string backup = mount_point + "/recovery-from-boot.bak";
+
+	TWPartition* ven = PartitionManager.Find_Partition_By_Path(mount_point);
+	if (!ven)
+		return false;
+
+	if (!PartitionManager.Mount_By_Path(mount_point, false))
+		return false;
+
+	if (!TWFunc::Path_Exists(patch)) {
+		PartitionManager.UnMount_By_Path(mount_point, false);
+		return false;
+	}
+
+	if (rename(patch.c_str(), backup.c_str()) == 0) {
+		sync();
+		PartitionManager.UnMount_By_Path(mount_point, false);
+		return true;
+	}
+
+	if (!ven->Get_Super_Status()) {
+		LOGINFO("Unable to rename %s: %s\n", patch.c_str(), strerror(errno));
+		PartitionManager.UnMount_By_Path(mount_point, false);
+		return false;
+	}
+
+	PartitionManager.UnMount_By_Path(mount_point, false);
+
+	const std::string name = "vendor";
+	if (!android::fs_mgr::DestroyLogicalPartition(name)) {
+		LOGINFO("Unable to unmap %s to disable stock recovery replace\n", name.c_str());
+		return false;
+	}
+
+	bool renamed = false;
+	std::string dm_path;
+	android::fs_mgr::CreateLogicalPartitionParams params {
+		.block_device = PartitionManager.Get_Super_Partition(),
+		.metadata_slot = 0,
+		.partition_name = name,
+		.force_writable = true,
+		.timeout_ms = std::chrono::milliseconds(10000),
+	};
+
+	if (android::fs_mgr::CreateLogicalPartition(params, &dm_path)) {
+		if (PartitionManager.Mount_By_Path(mount_point, false)) {
+			if (mount(NULL, mount_point.c_str(), NULL, MS_REMOUNT, NULL) == 0) {
+				if (rename(patch.c_str(), backup.c_str()) == 0)
+					renamed = true;
+				else
+					LOGINFO("Unable to rename %s: %s\n", patch.c_str(), strerror(errno));
+				sync();
+			} else {
+				LOGINFO("Unable to remount %s read-write: %s\n", mount_point.c_str(), strerror(errno));
+			}
+			PartitionManager.UnMount_By_Path(mount_point, false);
+		}
+		// Restore the original read-only mapping
+		android::fs_mgr::DestroyLogicalPartition(name);
+		params.force_writable = false;
+		if (!android::fs_mgr::CreateLogicalPartition(params, &dm_path))
+			LOGINFO("Unable to restore read-only mapping for %s\n", name.c_str());
+	} else {
+		LOGINFO("Unable to map %s read-write\n", name.c_str());
+	}
+
+	return renamed;
+}
+
 void TWFunc::Disable_Stock_Recovery_Replace(void) {
 	if (PartitionManager.Mount_By_Path(PartitionManager.Get_Android_Root_Path(), false)) {
 		// Disable flashing of stock recovery
@@ -1192,6 +1265,8 @@ void TWFunc::Disable_Stock_Recovery_Replace(void) {
 		}
 		PartitionManager.UnMount_By_Path(PartitionManager.Get_Android_Root_Path(), false);
 	}
+	if (Rename_Vendor_Recovery_Patch())
+		gui_print("Renamed stock recovery file in /vendor to prevent the stock ROM from replacing TWRP.\n");
 }
 
 unsigned long long TWFunc::IOCTL_Get_Block_Size(const char* block_device) {

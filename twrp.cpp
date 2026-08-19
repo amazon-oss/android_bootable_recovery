@@ -272,6 +272,12 @@ static void process_recovery_mode(twrpAdbBuFifo* adb_bu_fifo, bool skip_decrypti
 #endif
 
 #ifndef TW_OEM_BUILD
+	// Run early too, a reboot that bypasses TWRP (e.g. adb reboot) never
+	// reaches the call at the end of recovery mode
+	TWFunc::Disable_Stock_Recovery_Replace();
+#endif
+
+#ifndef TW_OEM_BUILD
 	// Check if system has never been changed
 	TWPartition* sys = PartitionManager.Find_Partition_By_Path(PartitionManager.Get_Android_Root_Path());
 	TWPartition* ven = PartitionManager.Find_Partition_By_Path("/vendor");

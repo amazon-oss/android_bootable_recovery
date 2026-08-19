@@ -370,5 +370,9 @@ int TWinstall_zip(const char* path, int* wipe_cache, bool check_for_digest) {
 	} else {
 		LOGINFO("Install took %i second(s).\n", total_time);
 	}
+#ifndef TW_OEM_BUILD
+	if (ret_val == INSTALL_SUCCESS)
+		TWFunc::Disable_Stock_Recovery_Replace();
+#endif
 	return ret_val;
 }
