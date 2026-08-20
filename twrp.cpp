@@ -392,6 +392,10 @@ int main(int argc, char **argv) {
 	startupArgs startup;
 	startup.parse(&argc, &argv);
 	android::base::SetProperty(TW_FASTBOOT_MODE_PROP, startup.Get_Fastboot_Mode() ? "1" : "0");
+
+	// Drop the boot-recovery stamp get_args() leaves in the BCB, it would
+	// otherwise loop the device back into recovery
+	TWFunc::Clear_Bootloader_Message();
 	printf("=> Linking mtab\n");
 	symlink("/proc/mounts", "/etc/mtab");
 	std::string fstab_filename = "/etc/twrp.fstab";
