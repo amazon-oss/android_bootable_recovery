@@ -49,6 +49,14 @@ static std::vector<std::string> gConsole;
 static std::vector<std::string> gConsoleColor;
 static FILE* ors_file = NULL;
 
+static void ors_file_write(const char *buf)
+{
+	if (!ors_file)
+		return;
+	if (fprintf(ors_file, "%s", buf) < 0 || fflush(ors_file) != 0)
+		ors_file = NULL;
+}
+
 struct InitMutex
 {
 	InitMutex() { pthread_mutex_init(&console_lock, NULL); }
@@ -60,10 +68,7 @@ static void internal_gui_print(const char *color, char *buf)
 	GUIConsole::Translate_Now();
 
 	fputs(buf, stdout);
-	if (ors_file) {
-		fprintf(ors_file, "%s", buf);
-		fflush(ors_file);
-	}
+	ors_file_write(buf);
 
 	char *start, *next;
 
@@ -161,10 +166,7 @@ void gui_msg(Message msg)
 	std::string output = msg;
 	output += "\n";
 	fputs(output.c_str(), stdout);
-	if (ors_file) {
-		fprintf(ors_file, "%s", output.c_str());
-		fflush(ors_file);
-	}
+	ors_file_write(output.c_str());
 	pthread_mutex_lock(&console_lock);
 	gMessages.push_back(msg);
 	pthread_mutex_unlock(&console_lock);

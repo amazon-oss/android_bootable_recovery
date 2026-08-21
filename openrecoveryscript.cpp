@@ -108,6 +108,7 @@ int OpenRecoveryScript::run_script_file(void) {
 
 	FILE *fp = fopen(SCRIPT_FILE_TMP, "r");
 	if (fp != NULL) {
+		unlink(SCRIPT_FILE_TMP);
 		DataManager::SetValue(TW_SIMULATE_ACTIONS, 0);
 		DataManager::SetValue("ui_progress", 0); // Reset the progress bar
 		while (fgets(script_line, SCRIPT_COMMAND_SIZE, fp) != NULL && ret_val == 0) {
@@ -384,6 +385,7 @@ int OpenRecoveryScript::run_script_file(void) {
 				string result;
 
 				gui_msg("start_sideload=Starting ADB sideload feature...");
+				bool mtp_was_enabled = TWFunc::Toggle_MTP(false);
 
 				Device::BuiltinAction reboot_action = Device::REBOOT_BOOTLOADER;
 				ret_val = twrp_sideload("/", &reboot_action);
@@ -412,6 +414,7 @@ int OpenRecoveryScript::run_script_file(void) {
 					waitpid(sideload_child_pid, &status, 0);
 				}
 				property_set("ctl.start", "adbd");
+				TWFunc::Toggle_MTP(mtp_was_enabled);
 				gui_msg("done=Done.");
 			} else if (strcmp(command, "fixperms") == 0 || strcmp(command, "fixpermissions") == 0 || strcmp(command, "fixcontexts") == 0) {
 				ret_val = PartitionManager.Fix_Contexts();
@@ -443,7 +446,6 @@ int OpenRecoveryScript::run_script_file(void) {
 			}
 		}
 		fclose(fp);
-		unlink(SCRIPT_FILE_TMP);
 		gui_msg("done_ors=Done processing script file");
 	} else {
 		gui_msg(Msg(msg::kError, "error_opening_strerr=Error opening: '{1}' ({2})")(SCRIPT_FILE_TMP)(

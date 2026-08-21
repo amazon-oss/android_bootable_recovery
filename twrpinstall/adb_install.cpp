@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <chrono>
 #include <functional>
 #include <map>
 #include <utility>
@@ -63,7 +64,7 @@ pid_t GetMiniAdbdPid() {
 
 static bool SetUsbConfig(const std::string& state) {
   android::base::SetProperty("sys.usb.config", state);
-  return android::base::WaitForProperty("sys.usb.state", state);
+  return android::base::WaitForProperty("sys.usb.state", state, std::chrono::seconds(10));
 }
 
 // Parses the minadbd command in |message|; returns MinadbdCommand::kError upon errors.
@@ -332,7 +333,7 @@ static void CreateMinadbdServiceAndExecuteCommands(
     }
   }
 
-  signal(SIGPIPE, SIG_DFL);
+  signal(SIGPIPE, SIG_IGN);
 }
 
   int twrp_sideload(const char* install_file, Device::BuiltinAction* reboot_action) {
@@ -369,9 +370,14 @@ static void CreateMinadbdServiceAndExecuteCommands(
     LOG(ERROR) << "Failed to clear USB config";
   }
 
-  if (usb_state != "none") {
-    if (!SetUsbConfig(usb_state)) {
-      LOG(ERROR) << "Failed to set USB config to " << usb_state;
+  std::string restore_state = usb_state;
+  if (restore_state == "none" || restore_state.find("mtp") != std::string::npos) {
+    restore_state = "adb";
+  }
+  if (!SetUsbConfig(restore_state)) {
+    LOG(ERROR) << "Failed to set USB config to " << restore_state;
+    if (restore_state != "adb") {
+      SetUsbConfig("adb");
     }
   }
 
