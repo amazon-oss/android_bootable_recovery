@@ -611,6 +611,51 @@ void TWFunc::Update_Intent_File(string Intent) {
 }
 
 // reboot: Reboot the system. Return -1 on error, no return on success
+#ifdef TW_BOOT_MENU
+// The bootloader forces recovery whenever a y-cable is attached, so leaving
+// recovery for the OS has to leave this command in the BCB or the reboot lands
+// straight back in TWRP.
+//
+// The block device is resolved through PartitionManager rather than
+// get_misc_blk_device(): that helper goes through ReadDefaultFstab(), and the
+// vendor fstab on this board does not necessarily carry a /misc entry, while
+// TWRP's own fstab always does. Hence the _from/_to variants that take an
+// explicit device. Read-modify-write so status and recovery survive; only the
+// command field is touched.
+bool TWFunc::Set_Bootloader_Command(const char* command)
+{
+	TWPartition* misc = PartitionManager.Find_Partition_By_Path("/misc");
+	if (misc == NULL || misc->Actual_Block_Device.empty()) {
+		LOGINFO("bcb: no /misc partition, cannot set command '%s'\n", command);
+		return false;
+	}
+
+	std::string device = misc->Actual_Block_Device;
+	std::string err;
+	bootloader_message boot = {};
+
+	// A read failure is not fatal: we only care about the command field, and a
+	// zeroed message is a valid one to write.
+	if (!read_bootloader_message_from(&boot, device, &err)) {
+		LOGINFO("bcb: unable to read '%s' (%s), writing a fresh message\n",
+			device.c_str(), err.c_str());
+		boot = {};
+	}
+
+	memset(boot.command, 0, sizeof(boot.command));
+	strlcpy(boot.command, command, sizeof(boot.command));
+
+	if (!write_bootloader_message_to(boot, device, &err)) {
+		LOGINFO("bcb: unable to write '%s' to '%s': %s\n", command, device.c_str(),
+			err.c_str());
+		return false;
+	}
+
+	LOGINFO("bcb: set command to '%s' in '%s'\n", command, device.c_str());
+	return true;
+}
+#endif
+
 int TWFunc::tw_reboot(RebootCommand command)
 {
 	DataManager::Flush();
@@ -623,6 +668,14 @@ int TWFunc::tw_reboot(RebootCommand command)
 		case rb_current:
 		case rb_system:
 			Update_Intent_File("s");
+#ifdef TW_BOOT_MENU
+			// The y-cable is normally still attached when the user asks for
+			// the OS, and the bootloader would force us back into recovery.
+			Set_Bootloader_Command(TW_BOOT_SYSTEM_COMMAND);
+			// Update_Log_File() already ran above, so flush again to get the
+			// result into the persisted log rather than losing it with /tmp.
+			Update_Log_File();
+#endif
 			sync();
 			check_and_run_script("/system/bin/rebootsystem.sh", "reboot system");
 #ifdef ANDROID_RB_PROPERTY

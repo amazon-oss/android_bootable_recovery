@@ -29,6 +29,9 @@ int gui_startPage(const char* page_name, const int allow_comands, int stop_on_pa
 void gui_print(const char *fmt, ...);
 void gui_print_color(const char *color, const char *fmt, ...);
 void gui_set_FILE(FILE* f);
+#ifdef TW_BOOT_MENU
+void boot_menu();
+#endif
 
 void set_scale_values(float w, float h);
 int scale_theme_x(int initial_x);

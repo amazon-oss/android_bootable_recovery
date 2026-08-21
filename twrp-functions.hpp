@@ -83,6 +83,9 @@ public:
 	static void Update_Log_File(void);                                          // Writes the log to last_log
 	static void Update_Intent_File(string Intent);                              // Updates intent file
 	static int tw_reboot(RebootCommand command);                                // Prepares the device for rebooting
+#ifdef TW_BOOT_MENU
+	static bool Set_Bootloader_Command(const char* command);                    // Writes a command into the BCB in /misc for the bootloader to act on
+#endif
 	static void check_and_run_script(const char* script_file, const char* display_name); // checks for the existence of a script, chmods it to 755, then runs it
 	static int removeDir(const string path, bool removeParent); //recursively remove a directory
 	static int copy_file(string src, string dst, int mode, bool mount_paths=true); //copy file from src to dst with mode permissions

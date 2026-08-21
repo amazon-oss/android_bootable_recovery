@@ -885,6 +885,25 @@ extern "C" int gui_start(void)
 	return gui_startPage("main", 1, 0);
 }
 
+#ifdef TW_BOOT_MENU
+extern "C" void boot_menu()
+{
+	// load and show bootmenu screen
+	if (PageManager::LoadPackage("bootmenu", TWRES "bootmenu.xml", "bootmenu")) {
+		LOGERR("Failed to load bootmenu screen XML.\n");
+	}
+	else {
+		TWPartition* partition = PartitionManager.Find_Partition_By_Path("/misc");
+		const char* misc_dev = partition ? partition->Actual_Block_Device.c_str() : "";
+		PageManager::SelectPackage("bootmenu");
+		input_handler.init();
+		DataManager::SetValue("bm_loaded", "1");
+		DataManager::SetValue("misc_dev", misc_dev);
+		runPages("bootmenu", 0);
+	}
+}
+#endif
+
 extern "C" int gui_startPage(const char *page_name, __attribute__((unused)) const int allow_commands, int stop_on_page_done)
 {
 	if (!gGuiInitialized)

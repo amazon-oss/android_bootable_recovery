@@ -263,6 +263,9 @@ endif
 ifeq ($(TW_NO_REBOOT_BOOTLOADER), true)
     LOCAL_CFLAGS += -DTW_NO_REBOOT_BOOTLOADER
 endif
+ifeq ($(TW_BOOT_MENU), true)
+    LOCAL_CFLAGS += -DTW_BOOT_MENU
+endif
 ifeq ($(TW_NO_REBOOT_RECOVERY), true)
     LOCAL_CFLAGS += -DTW_NO_REBOOT_RECOVERY
 endif

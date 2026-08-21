@@ -85,13 +85,17 @@ func copyThemeResources(ctx android.BaseContext, dirs []string, files []string) 
 		}
 	}
 
-	_files := [2]string{"splash.xml", "ui.xml"}
+	_files := []string{"splash.xml", "ui.xml", "bootmenu.xml"}
 	for _, i := range _files {
 		var fontsize int = 0
 		var width int = 0
 
 		data, err = ioutil.ReadFile(twRes + i)
 		if err != nil {
+			// bootmenu.xml is only present for themes that ship one.
+			if os.IsNotExist(err) {
+				continue
+			}
 			fmt.Println(err)
 			return
 		}
@@ -276,6 +280,9 @@ func globalFlags(ctx android.BaseContext) []string {
 
 	if getMakeVars(ctx, "AB_OTA_UPDATER") == "true" {
 		cflags = append(cflags, "-DAB_OTA_UPDATER=1")
+	}
+	if getMakeVars(ctx, "TW_BOOT_MENU") == "true" {
+		cflags = append(cflags, "-DTW_BOOT_MENU")
 	}
 	return cflags
 }

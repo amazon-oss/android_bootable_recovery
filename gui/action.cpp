@@ -206,6 +206,10 @@ GUIAction::GUIAction(xml_node<>* node)
 		ADD_ACTION(setlanguage);
 		ADD_ACTION(checkforapp);
 		ADD_ACTION(togglebacklight);
+#ifdef TW_BOOT_MENU
+		ADD_ACTION(nonthreadedcmd);
+		ADD_ACTION(bootmenureboot);
+#endif
 		ADD_ACTION(enableadb);
 		ADD_ACTION(enablefastboot);
 		ADD_ACTION(changeterminal);
@@ -243,6 +247,9 @@ GUIAction::GUIAction(xml_node<>* node)
 		ADD_ACTION(repackimage);
 		ADD_ACTION(reflashtwrp);
 		ADD_ACTION(fixabrecoverybootloop);
+#ifdef TW_BOOT_MENU
+		ADD_ACTION(threadedsleepcounter);
+#endif
 		ADD_ACTION(applycustomtwrpfolder);
 #ifndef TW_EXCLUDE_NANO
 		ADD_ACTION(editfile);
@@ -852,6 +859,13 @@ int GUIAction::sleepcounter(std::string arg)
 	return 0;
 }
 
+#ifdef TW_BOOT_MENU
+int GUIAction::threadedsleepcounter(std::string arg)
+{
+	return sleepcounter(arg);
+}
+#endif
+
 int GUIAction::appenddatetobackupname(std::string arg __unused)
 {
 	operation_start("AppendDateToBackupName");
@@ -1397,6 +1411,24 @@ int GUIAction::cmd(std::string arg)
 	operation_end(op_status);
 	return 0;
 }
+
+#ifdef TW_BOOT_MENU
+int GUIAction::nonthreadedcmd(std::string arg)
+{
+	return cmd(arg);
+}
+
+// GUIAction::reboot() does not reboot: it sets tw_gui_done and tw_reboot_arg,
+// and the actual reboot is done by reboot() in twrp.cpp once gui_start() has
+// returned. The boot menu runs long before that, from boot_menu(), so using it
+// here would just end runPages() and drop us into the normal TWRP UI. Reboot
+// straight away instead. tw_reboot() is what arms the kaeru flag for rb_system.
+int GUIAction::bootmenureboot(std::string arg __unused)
+{
+	TWFunc::tw_reboot(rb_system);
+	return 0;
+}
+#endif
 
 int GUIAction::terminalcommand(std::string arg)
 {

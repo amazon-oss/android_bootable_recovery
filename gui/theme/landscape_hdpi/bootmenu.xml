@@ -1,0 +1,222 @@
+<?xml version="1.0"?>
+<recovery>
+	<details>
+		<resolution width="1920" height="1200"/>
+		<author>k4y0z, R0rt1z2</author>
+		<title>Boot Menu</title>
+		<description>boot menu</description>
+		<themeversion>{themeversion}</themeversion>
+	</details>
+
+	<resources>
+		<font name="font_l" filename="RobotoCondensed-Regular.ttf" size="52"/>
+		<font name="font_m" filename="RobotoCondensed-Regular.ttf" size="32"/>
+		<!-- font_s and fixed are not used here, but common/languages/*.xml
+		     carries a fontoverride for each and logs an error if the name is
+		     missing from the package. -->
+		<font name="font_s" filename="RobotoCondensed-Regular.ttf" size="28"/>
+		<font name="fixed" filename="DroidSansMono.ttf" size="26"/>
+		<image name="main_button" filename="main_button_half_width"/>
+		<image name="cursor" filename="cursor" retainaspect="1"/>
+		<image name="progress_empty" filename="progress_empty"/>
+		<image name="progress_full" filename="progress_fill"/>
+	</resources>
+
+	<variables>
+		<variable name="screen_width" value="1920"/>
+		<variable name="screen_height" value="1200"/>
+		<variable name="background_color" value="#1A1A1A"/>
+		<variable name="highlight_color" value="#1A1A1A80"/>
+		<variable name="text_color" value="#EEEEEE"/>
+		<variable name="text_dim_color" value="#6E6E6E"/>
+		<variable name="scrim_color" value="#1A1A1AB0"/>
+		<variable name="center_x" value="960"/>
+		<variable name="title_y" value="300"/>
+		<variable name="btn_a_x" value="456"/>
+		<variable name="btn_a_y" value="520"/>
+		<variable name="btn_b_x" value="1008"/>
+		<variable name="btn_b_y" value="520"/>
+		<variable name="btn_w" value="456"/>
+		<variable name="btn_h" value="192"/>
+		<variable name="progress_x" value="552"/>
+		<variable name="progress_y" value="820"/>
+		<variable name="count_y" value="930"/>
+		<variable name="hint_y" value="1010"/>
+	</variables>
+
+	<mousecursor>
+		<placement w="15" h="15"/>
+		<background color="#FFFF00FF" resource="cursor"/>
+		<speed multiplier="2.5"/>
+	</mousecursor>
+
+	<styles>
+		<style name="btn">
+			<highlight color="%highlight_color%"/>
+			<font resource="font_l" color="%text_color%"/>
+			<image resource="main_button"/>
+		</style>
+		<style name="text_l">
+			<font resource="font_l" color="%text_color%"/>
+		</style>
+		<style name="text_m">
+			<font resource="font_m" color="%text_dim_color%"/>
+		</style>
+	</styles>
+
+	<pages>
+		<page name="bootmenu">
+			<action>
+				<actions>
+					<action function="set">bm_sel=0</action>
+					<action function="set">tw_sleep=%tw_sleep_total%</action>
+					<action function="page">bootmenu2</action>
+				</actions>
+			</action>
+		</page>
+
+		<page name="bootmenu2">
+			<background color="%background_color%"/>
+
+			<text style="text_l">
+				<placement x="%center_x%" y="%title_y%" placement="5"/>
+				<text>Select what to boot</text>
+			</text>
+
+			<!-- Both buttons are drawn at full brightness. Selecting one selects
+			     it and zeroes the countdown, which is the same trigger the
+			     timeout uses, so there is only one commit path. -->
+			<button style="btn">
+				<placement x="%btn_a_x%" y="%btn_a_y%"/>
+				<text>Boot System</text>
+				<actions>
+					<action function="set">bm_sel=0</action>
+					<action function="set">tw_sleep=0</action>
+				</actions>
+			</button>
+
+			<button style="btn">
+				<placement x="%btn_b_x%" y="%btn_b_y%"/>
+				<text>Enter Recovery</text>
+				<actions>
+					<action function="set">bm_sel=1</action>
+					<action function="set">tw_sleep=0</action>
+				</actions>
+			</button>
+
+			<!-- Scrim over whichever button is not selected, drawn after the
+			     buttons so it sits on top and fades image and label together.
+			     fill is render only, so it does not eat the click underneath. -->
+			<fill color="%scrim_color%">
+				<condition var1="bm_sel" var2="1"/>
+				<placement x="%btn_a_x%" y="%btn_a_y%" w="%btn_w%" h="%btn_h%"/>
+			</fill>
+
+			<fill color="%scrim_color%">
+				<condition var1="bm_sel" var2="0"/>
+				<placement x="%btn_b_x%" y="%btn_b_y%" w="%btn_w%" h="%btn_h%"/>
+			</fill>
+
+			<progressbar>
+				<placement x="%progress_x%" y="%progress_y%"/>
+				<resource empty="progress_empty" full="progress_full"/>
+				<data name="ui_progress"/>
+			</progressbar>
+
+			<text style="text_l">
+				<condition var1="bm_sel" var2="0"/>
+				<placement x="%center_x%" y="%count_y%" placement="5"/>
+				<text>Booting system in %tw_sleep% second(s)</text>
+			</text>
+
+			<text style="text_l">
+				<condition var1="bm_sel" var2="1"/>
+				<placement x="%center_x%" y="%count_y%" placement="5"/>
+				<text>Entering recovery in %tw_sleep% second(s)</text>
+			</text>
+
+			<text style="text_m">
+				<placement x="%center_x%" y="%hint_y%" placement="5"/>
+				<text>Arrow keys or mouse to choose, Enter to confirm</text>
+			</text>
+
+			<!-- Keyboard and remote navigation. getKeyByName() falls through to
+			     atol(), so raw Linux keycodes work: 103 up, 105 left, 106 right,
+			     108 down, 28 enter, 96 keypad enter, 353 select. -->
+			<action>
+				<touch key="105"/>
+				<action function="set">bm_sel=0</action>
+			</action>
+
+			<action>
+				<touch key="103"/>
+				<action function="set">bm_sel=0</action>
+			</action>
+
+			<action>
+				<touch key="106"/>
+				<action function="set">bm_sel=1</action>
+			</action>
+
+			<action>
+				<touch key="108"/>
+				<action function="set">bm_sel=1</action>
+			</action>
+
+			<action>
+				<touch key="28"/>
+				<action function="set">tw_sleep=0</action>
+			</action>
+
+			<action>
+				<touch key="96"/>
+				<action function="set">tw_sleep=0</action>
+			</action>
+
+			<action>
+				<touch key="353"/>
+				<action function="set">tw_sleep=0</action>
+			</action>
+
+			<!-- Countdown. Threaded so the page stays interactive. -->
+			<action>
+				<conditions>
+					<condition var1="tw_sleep" var2="tw_sleep_total"/>
+					<condition var1="bm_loaded" var2="1"/>
+				</conditions>
+				<action function="threadedsleepcounter">%tw_sleep_total%</action>
+			</action>
+
+			<!-- Commit, on tw_sleep reaching 0 either by timeout or by a button
+			     or Enter zeroing it. bm_loaded is cleared first so neither
+			     branch can re-fire. bootmenureboot reboots immediately; the
+			     stock reboot action only arms a deferred reboot that twrp.cpp
+			     acts on after the main GUI exits, which would land us in TWRP. -->
+			<action>
+				<conditions>
+					<condition var1="tw_sleep" var2="0"/>
+					<condition var1="bm_sel" var2="0"/>
+					<condition var1="bm_loaded" var2="1"/>
+				</conditions>
+				<actions>
+					<action function="set">bm_loaded=0</action>
+					<action function="sleep">50000</action>
+					<action function="bootmenureboot"/>
+				</actions>
+			</action>
+
+			<action>
+				<conditions>
+					<condition var1="tw_sleep" var2="0"/>
+					<condition var1="bm_sel" var2="1"/>
+					<condition var1="bm_loaded" var2="1"/>
+				</conditions>
+				<actions>
+					<action function="set">bm_loaded=0</action>
+					<action function="set">tw_gui_done=1</action>
+				</actions>
+			</action>
+
+		</page>
+	</pages>
+</recovery>

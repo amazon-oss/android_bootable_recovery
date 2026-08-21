@@ -277,6 +277,25 @@ static void process_recovery_mode(twrpAdbBuFifo* adb_bu_fifo, bool skip_decrypti
 	TWFunc::Disable_Stock_Recovery_Replace();
 #endif
 
+#ifdef TW_BOOT_MENU
+	// Check the cmdline to see if boot_reason=0 (cold boot) and a y-cable/OTG
+	// adapter is attached. karat's lk emits both of these.
+	{
+		char line[2048];
+		FILE *cmdline_fp = fopen("/proc/cmdline", "rt");
+		if (cmdline_fp != NULL) {
+			if (fgets(line, sizeof(line), cmdline_fp) != NULL) {
+				fclose(cmdline_fp); // cmdline is only one line long
+				if (strstr(line, "boot_reason=0") && strstr(line, "y_cable=1")) {
+					boot_menu();
+				}
+			} else {
+				fclose(cmdline_fp);
+			}
+		}
+	}
+#endif
+
 #ifndef TW_OEM_BUILD
 	// Check if system has never been changed
 	TWPartition* sys = PartitionManager.Find_Partition_By_Path(PartitionManager.Get_Android_Root_Path());

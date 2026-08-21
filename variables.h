@@ -183,6 +183,12 @@
 #endif
 
 #define SCRIPT_FILE_TMP "/tmp/openrecoveryscript"
+
+#ifdef TW_BOOT_MENU
+// BCB command the bootloader looks for to boot the OS and skip its own forced
+// recovery. Must stay in sync with the bootloader.
+#define TW_BOOT_SYSTEM_COMMAND "boot-system"
+#endif
 #define TMP_LOG_FILE "/tmp/recovery.log"
 
 #endif  // _VARIABLES_HEADER_

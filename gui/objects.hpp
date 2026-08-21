@@ -333,6 +333,10 @@ protected:
 	int screenshot(std::string arg);
 	int setbrightness(std::string arg);
 	int checkforapp(std::string arg);
+#ifdef TW_BOOT_MENU
+	int nonthreadedcmd(std::string arg);
+	int bootmenureboot(std::string arg);
+#endif
 	int unmapsuperdevices(std::string arg);
 	int removedynamicgroups(std:: string arg);
 
@@ -376,6 +380,9 @@ protected:
 	int repackimage(std::string arg);
 	int reflashtwrp(std::string arg);
 	int fixabrecoverybootloop(std::string arg);
+#ifdef TW_BOOT_MENU
+	int threadedsleepcounter(std::string arg);
+#endif
 	int enableadb(std::string arg);
 	int enablefastboot(std::string arg);
 	int changeterminal(std::string arg);
