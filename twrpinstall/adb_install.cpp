@@ -96,6 +96,40 @@ static bool WriteStatusToFd(MinadbdCommandStatus status, int fd) {
   return true;
 }
 
+static bool AdbPackageIsReadable(const char* path) {
+  android::base::unique_fd fd(open(path, O_RDONLY | O_CLOEXEC));
+  if (fd == -1) {
+    PLOG(ERROR) << "Failed to open " << path;
+    return false;
+  }
+
+  uint8_t magic[4];
+  if (!android::base::ReadFully(fd, magic, sizeof(magic))) {
+    PLOG(ERROR) << "Failed to read from " << path;
+    return false;
+  }
+  if (memcmp(magic, "PK\x03\x04", sizeof(magic)) != 0) {
+    LOG(ERROR) << path << " is not a zip package";
+    return false;
+  }
+
+  struct stat st;
+  if (fstat(fd, &st) != 0) {
+    PLOG(ERROR) << "Failed to stat " << path;
+    return false;
+  }
+  if (st.st_size >= static_cast<off_t>(sizeof(magic))) {
+    uint8_t tail[4];
+    if (TEMP_FAILURE_RETRY(pread(fd, tail, sizeof(tail), st.st_size - sizeof(tail))) !=
+        static_cast<ssize_t>(sizeof(tail))) {
+      PLOG(ERROR) << "Failed to read the end of " << path;
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Installs the package from FUSE. Returns the installation result and whether it should continue
 // waiting for new commands.
 static auto AdbInstallPackageHandler(int* result) {
@@ -117,6 +151,10 @@ static auto AdbInstallPackageHandler(int* result) {
         should_continue = false;
         break;
       }
+    }
+    if (!AdbPackageIsReadable(FUSE_SIDELOAD_HOST_PATHNAME)) {
+      *result = INSTALL_CORRUPT;
+      break;
     }
     int dummy;
     *result = TWinstall_zip(FUSE_SIDELOAD_HOST_PATHNAME, &dummy);
