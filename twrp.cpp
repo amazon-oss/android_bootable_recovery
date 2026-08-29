@@ -278,15 +278,14 @@ static void process_recovery_mode(twrpAdbBuFifo* adb_bu_fifo, bool skip_decrypti
 #endif
 
 #ifdef TW_BOOT_MENU
-	// Check the cmdline to see if boot_reason=0 (cold boot) and a y-cable/OTG
-	// adapter is attached. karat's lk emits both of these.
+	// Check the cmdline to see if a y-cable/OTG adapter is attached.
 	{
 		char line[2048];
 		FILE *cmdline_fp = fopen("/proc/cmdline", "rt");
 		if (cmdline_fp != NULL) {
 			if (fgets(line, sizeof(line), cmdline_fp) != NULL) {
 				fclose(cmdline_fp); // cmdline is only one line long
-				if (strstr(line, "boot_reason=0") && strstr(line, "y_cable=1")) {
+				if (strstr(line, "y_cable=1")) {
 					boot_menu();
 				}
 			} else {
