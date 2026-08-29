@@ -299,6 +299,15 @@ static int atomic_populate_plane(int plane, drmModeAtomicReqPtr atomic_req) {
                                main_monitor_crtc->crtc_id))
     return -EINVAL;
 
+  /* Pin the layer opaque where the driver exposes per-pixel alpha control.
+     Set once here, not per flip: reprogramming the layer every frame starves DSI. */
+  if (find_plane_prop_id(plane_res[plane].plane->plane_id, "PLANE_PROP_ALPHA_CON", plane_res)) {
+    atomic_add_prop_to_plane(plane_res, atomic_req,
+                             plane_res[plane].plane->plane_id, "PLANE_PROP_PLANE_ALPHA", 0xFF);
+    atomic_add_prop_to_plane(plane_res, atomic_req,
+                             plane_res[plane].plane->plane_id, "PLANE_PROP_ALPHA_CON", 0);
+  }
+
   return 0;
 }
 
