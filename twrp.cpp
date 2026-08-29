@@ -509,6 +509,9 @@ int main(int argc, char **argv) {
 	if (startup.Get_Fastboot_Mode()) {
 		process_fastbootd_mode();
 		delete adb_bu_fifo;
+#ifndef TW_OEM_BUILD
+		TWFunc::Disable_Stock_Recovery_Replace();
+#endif
 		TWFunc::Update_Intent_File(startup.Get_Intent());
 		reboot();
 		return 0;

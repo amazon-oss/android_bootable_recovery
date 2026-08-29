@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 #include <dirent.h>
 #include <time.h>
@@ -1236,10 +1237,39 @@ std::string TWFunc::to_string(unsigned long value) {
 	return os.str();
 }
 
+static const std::vector<std::pair<std::string, std::string>>& Vendor_Recovery_Patches() {
+	static const std::vector<std::pair<std::string, std::string>> patches = {
+		{ "/vendor/recovery-from-boot.p",              "/vendor/recovery-from-boot.bak" },
+		{ "/vendor/etc/init/vendor_flash_recovery.rc", "/vendor/etc/init/vendor_flash_recovery.rc.bak" },
+		{ "/vendor/bin/install-recovery.sh",           "/vendor/bin/install-recovery.sh.bak" },
+	};
+	return patches;
+}
+
+static bool Any_Vendor_Recovery_Patch_Present(void) {
+	for (const auto& entry : Vendor_Recovery_Patches())
+		if (TWFunc::Path_Exists(entry.first))
+			return true;
+	return false;
+}
+
+static int Rename_Present_Vendor_Recovery_Patches(void) {
+	int renamed = 0;
+	for (const auto& entry : Vendor_Recovery_Patches()) {
+		if (!TWFunc::Path_Exists(entry.first))
+			continue;
+		if (rename(entry.first.c_str(), entry.second.c_str()) == 0) {
+			LOGINFO("Renamed %s\n", entry.first.c_str());
+			renamed++;
+		} else {
+			LOGINFO("Unable to rename %s: %s\n", entry.first.c_str(), strerror(errno));
+		}
+	}
+	return renamed;
+}
+
 static bool Rename_Vendor_Recovery_Patch(void) {
 	const std::string mount_point = "/vendor";
-	const std::string patch = mount_point + "/recovery-from-boot.p";
-	const std::string backup = mount_point + "/recovery-from-boot.bak";
 
 	TWPartition* ven = PartitionManager.Find_Partition_By_Path(mount_point);
 	if (!ven)
@@ -1248,19 +1278,30 @@ static bool Rename_Vendor_Recovery_Patch(void) {
 	if (!PartitionManager.Mount_By_Path(mount_point, false))
 		return false;
 
-	if (!TWFunc::Path_Exists(patch)) {
+	if (!Any_Vendor_Recovery_Patch_Present()) {
 		PartitionManager.UnMount_By_Path(mount_point, false);
 		return false;
 	}
 
-	if (rename(patch.c_str(), backup.c_str()) == 0) {
+	if (Rename_Present_Vendor_Recovery_Patches() > 0) {
 		sync();
 		PartitionManager.UnMount_By_Path(mount_point, false);
 		return true;
 	}
 
+	// The mapping is often writable even when the mount is not
+	if (mount(NULL, mount_point.c_str(), NULL, MS_REMOUNT, NULL) == 0) {
+		int renamed = Rename_Present_Vendor_Recovery_Patches();
+		sync();
+		mount(NULL, mount_point.c_str(), NULL, MS_REMOUNT | MS_RDONLY, NULL);
+		if (renamed > 0) {
+			PartitionManager.UnMount_By_Path(mount_point, false);
+			return true;
+		}
+	}
+
 	if (!ven->Get_Super_Status()) {
-		LOGINFO("Unable to rename %s: %s\n", patch.c_str(), strerror(errno));
+		LOGINFO("vendor is not in super; cannot remap read-write to disable stock recovery\n");
 		PartitionManager.UnMount_By_Path(mount_point, false);
 		return false;
 	}
@@ -1286,10 +1327,8 @@ static bool Rename_Vendor_Recovery_Patch(void) {
 	if (android::fs_mgr::CreateLogicalPartition(params, &dm_path)) {
 		if (PartitionManager.Mount_By_Path(mount_point, false)) {
 			if (mount(NULL, mount_point.c_str(), NULL, MS_REMOUNT, NULL) == 0) {
-				if (rename(patch.c_str(), backup.c_str()) == 0)
+				if (Rename_Present_Vendor_Recovery_Patches() > 0)
 					renamed = true;
-				else
-					LOGINFO("Unable to rename %s: %s\n", patch.c_str(), strerror(errno));
 				sync();
 			} else {
 				LOGINFO("Unable to remount %s read-write: %s\n", mount_point.c_str(), strerror(errno));
