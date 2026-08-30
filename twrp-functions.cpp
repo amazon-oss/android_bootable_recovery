@@ -1231,6 +1231,84 @@ void TWFunc::SetPerformanceMode(bool mode) {
 	usleep(500000);
 }
 
+
+struct HolderCtx {
+	std::set<pid_t>* pids;
+	std::vector<std::string>* services;
+};
+
+static void Read_Service_Prop(void* cookie, const char* name, const char* value, unsigned) {
+	static const char kPrefix[] = "init.svc_debug_pid.";
+	if (strncmp(name, kPrefix, sizeof(kPrefix) - 1) != 0)
+		return;
+	HolderCtx* ctx = static_cast<HolderCtx*>(cookie);
+	if (ctx->pids->count((pid_t)atoi(value)))
+		ctx->services->push_back(name + sizeof(kPrefix) - 1);
+}
+
+static void Collect_Service_Names(const prop_info* pi, void* cookie) {
+	__system_property_read_callback(pi, Read_Service_Prop, cookie);
+}
+
+void TWFunc::Kill_Mount_Holders(const std::string& mount_point) {
+	const std::string prefix = mount_point + "/";
+	std::set<pid_t> holders;
+
+	DIR* proc = opendir("/proc");
+	if (!proc)
+		return;
+
+	struct dirent* de;
+	while ((de = readdir(proc)) != NULL) {
+		pid_t pid = atoi(de->d_name);
+		if (pid <= 1 || pid == getpid())
+			continue;
+
+		static const char* links[] = { "exe", "cwd", "root" };
+		for (size_t i = 0; i < sizeof(links) / sizeof(links[0]); i++) {
+			char path[64], target[PATH_MAX];
+			snprintf(path, sizeof(path), "/proc/%d/%s", pid, links[i]);
+			ssize_t len = readlink(path, target, sizeof(target) - 1);
+			if (len <= 0)
+				continue;
+			target[len] = '\0';
+			if (strncmp(target, prefix.c_str(), prefix.size()) != 0)
+				continue;
+			LOGINFO("pid %d (%s) is holding %s\n", pid, target, mount_point.c_str());
+			holders.insert(pid);
+			break;
+		}
+	}
+	closedir(proc);
+
+	if (holders.empty())
+		return;
+
+	std::vector<std::string> services;
+	HolderCtx ctx = { &holders, &services };
+	__system_property_foreach(Collect_Service_Names, &ctx);
+	for (size_t i = 0; i < services.size(); i++) {
+		LOGINFO("Stopping service %s\n", services[i].c_str());
+		android::base::SetProperty("ctl.stop", services[i]);
+	}
+
+	for (std::set<pid_t>::iterator it = holders.begin(); it != holders.end(); ++it)
+		kill(*it, SIGKILL);
+
+	for (int i = 0; i < 50; i++) {
+		bool alive = false;
+		for (std::set<pid_t>::iterator it = holders.begin(); it != holders.end(); ++it) {
+			if (kill(*it, 0) == 0) {
+				alive = true;
+				break;
+			}
+		}
+		if (!alive)
+			break;
+		usleep(100000);
+	}
+}
+
 std::string TWFunc::to_string(unsigned long value) {
 	std::ostringstream os;
 	os << value;

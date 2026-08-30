@@ -3741,7 +3741,10 @@ bool TWPartitionManager::Unmap_Super_Devices() {
 			std::string blk_device_partition = bare_partition_name;
 			if (DataManager::GetStrValue("tw_has_boot_slots") == "1")
 				blk_device_partition.append(PartitionManager.Get_Active_Slot_Suffix());
-			(*iter)->UnMount(false);
+			if (!(*iter)->UnMount(false)) {
+				TWFunc::Kill_Mount_Holders((*iter)->Get_Mount_Point());
+				(*iter)->UnMount(false);
+			}
 			LOGINFO("removing dynamic partition: %s\n", blk_device_partition.c_str());
 			destroyed = DestroyLogicalPartition(blk_device_partition);
 			std::string cow_partition = blk_device_partition + "-cow";
