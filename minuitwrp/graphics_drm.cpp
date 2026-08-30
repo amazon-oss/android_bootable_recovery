@@ -212,6 +212,30 @@ static int find_plane_prop_id(uint32_t obj_id, const char *prop_name,
   return 0;
 }
 
+/* Drivers may expose a plane property as immutable (mediatek does this for
+ * "zpos", since each OVL layer has a fixed position in the blend order).
+ * Adding an immutable property to an atomic request makes the whole commit
+ * fail with -EINVAL, so callers have to check first.
+ */
+static bool plane_prop_is_immutable(uint32_t obj_id, const char *prop_name,
+                                    Plane *plane_res) {
+  int i, j;
+  struct Plane *obj = NULL;
+
+  for (i = 0; i < NUM_PLANES; ++i) {
+    obj = &plane_res[i];
+    /* Only the first number_of_lms entries are populated. */
+    if (!obj->plane || !obj->props || obj->plane->plane_id != obj_id)
+      continue;
+    for (j = 0; j < (int)obj->props->count_props; ++j)
+      if (!strcmp(obj->props_info[j]->name, prop_name))
+        return (obj->props_info[j]->flags & DRM_MODE_PROP_IMMUTABLE) != 0;
+    break;
+  }
+
+  return false;
+}
+
 static int atomic_add_prop_to_plane(Plane *plane_res, drmModeAtomicReq *req,
                                     uint32_t obj_id, const char *prop_name,
                                     uint64_t value) {
@@ -254,8 +278,9 @@ static int atomic_populate_plane(int plane, drmModeAtomicReqPtr atomic_req) {
   if (number_of_lms == 4)
     zpos = plane >> 1;
 
-  atomic_add_prop_to_plane(plane_res, atomic_req,
-                           plane_res[plane].plane->plane_id, "zpos", zpos);
+  if (!plane_prop_is_immutable(plane_res[plane].plane->plane_id, "zpos", plane_res))
+    atomic_add_prop_to_plane(plane_res, atomic_req,
+                             plane_res[plane].plane->plane_id, "zpos", zpos);
 
   if (atomic_add_prop_to_plane(plane_res, atomic_req,
                                plane_res[plane].plane->plane_id, "FB_ID",
@@ -843,6 +868,7 @@ static GRSurface* drm_init(minui_backend* backend __unused) {
                                    crtc_res.props->props[j]);
 
   /* Set connector resources */
+  bool found_topology = false;
   conn_res.props = drmModeObjectGetProperties(drm_fd,
                      main_monitor_connector->connector_id,
                      DRM_MODE_OBJECT_CONNECTOR);
@@ -864,9 +890,19 @@ static GRSurface* drm_init(minui_backend* backend __unused) {
        */
       if (!strcmp(conn_res.props_info[j]->name, "mode_properties")) {
         number_of_lms = get_topology_lm_number(drm_fd, conn_res.props->prop_values[j]);
+        found_topology = true;
         printf("number of lms in topology %d\n", number_of_lms);
       }
     }
+  }
+
+  /* "mode_properties" is an SDE-ism.  Without it there is no topology telling
+   * us to split the scanout across several layer mixers, so drive the whole
+   * CRTC from a single plane instead of defaulting to the dual-pipe layout.
+   */
+  if (!found_topology) {
+    number_of_lms = 1;
+    printf("No topology info, using a single layer mixer\n");
   }
 
   /* Set plane resources */
